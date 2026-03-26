@@ -89,6 +89,27 @@ Instead of dumping your entire corrections log into the Auditor's context, the v
 
 ## Installation
 
+### As a Claude Code Plugin (Recommended)
+
+Add the marketplace and install:
+
+```bash
+/plugin marketplace add boomdoinksoda/agent-debate
+/plugin install agent-debate@agent-debate-marketplace
+```
+
+Then use it:
+
+```bash
+/agent-debate PROJ-12345
+```
+
+The first run will automatically install dependencies and offer to run the init flow.
+
+### From Source
+
+If you prefer to clone and hack on it:
+
 ```bash
 git clone https://github.com/boomdoinksoda/agent-debate.git
 cd agent-debate
@@ -99,7 +120,13 @@ npm install
 
 ### 1. Configure Your Agents
 
+If installed as a plugin, the `/agent-debate` skill handles setup automatically on first run. To run setup manually:
+
 ```bash
+# Plugin install
+/agent-debate init
+
+# From source
 npx tsx src/index.ts init
 ```
 
@@ -196,6 +223,10 @@ You are the Auditor. Your job is to prevent the team from repeating past mistake
 Run the complete debate → code → review pipeline for a Jira ticket:
 
 ```bash
+# As plugin
+/agent-debate PROJ-12345
+
+# From source
 npx tsx src/index.ts run PROJ-12345
 ```
 
@@ -226,18 +257,18 @@ See what would happen without making any API calls:
 npx tsx src/index.ts run PROJ-12345 --dry-run
 ```
 
-## Claude Code Skill Integration
+## Claude Code Plugin
 
-To use Agent Debate as a Claude Code skill, copy or symlink `skill.md` into your Claude Code skills directory:
+Agent Debate is distributed as a Claude Code plugin. Once installed via the marketplace, the `/agent-debate` slash command is available in all your projects.
 
 ```bash
-# Copy to your project's .claude directory
-cp skill.md /path/to/your/project/.claude/commands/agent-debate.md
-```
+# Add the marketplace (one-time)
+/plugin marketplace add boomdoinksoda/agent-debate
 
-Then invoke it in Claude Code:
+# Install the plugin (one-time)
+/plugin install agent-debate@agent-debate-marketplace
 
-```
+# Use it
 /agent-debate PROJ-12345
 ```
 
@@ -245,12 +276,17 @@ Then invoke it in Claude Code:
 
 ```
 agent-debate/
+├── .claude-plugin/
+│   ├── plugin.json            # Plugin manifest
+│   └── marketplace.json       # Marketplace definition
+├── skills/
+│   └── agent-debate/
+│       └── SKILL.md           # Slash command definition
 ├── agent-config.json          # Role → agent mapping (your config)
 ├── personas/                  # Debate agent persona definitions
 │   ├── architect.md
 │   ├── pragmatist.md
 │   └── auditor.md
-├── skill.md                   # Claude Code skill entry point
 ├── src/
 │   ├── index.ts               # CLI entry point (init, run, seed)
 │   ├── init.ts                # Interactive agent onboarding
