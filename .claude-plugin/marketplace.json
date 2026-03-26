@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "agent-debate",
-      "source": ".",
+      "source": "./",
       "description": "Multi-agent debate orchestrator — coordinates AI agents to debate, implement, and review code changes from Jira tickets"
     }
   ]
