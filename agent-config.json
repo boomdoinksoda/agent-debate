@@ -1,0 +1,18 @@
+{
+  "roles": {
+    "coder": "default-coder",
+    "reviewer:correctness": "default-reviewer",
+    "reviewer:style": "default-reviewer",
+    "reviewer:patterns": "default-reviewer"
+  },
+  "personas": {
+    "debater:architect": "personas/architect.md",
+    "debater:pragmatist": "personas/pragmatist.md",
+    "debater:auditor": "personas/auditor.md"
+  },
+  "settings": {
+    "maxDebateRounds": 4,
+    "maxReviewCycles": 3,
+    "correctionsLogPath": "corrections-log.md"
+  }
+}

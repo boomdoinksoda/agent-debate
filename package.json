@@ -1,0 +1,26 @@
+{
+  "name": "agent-debate",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Multi-agent debate orchestrator for implementation planning",
+  "bin": {
+    "agent-debate": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "node --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@lancedb/lancedb": "^0.27.1",
+    "apache-arrow": "^18.1.0",
+    "chalk": "^5.4.0",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
