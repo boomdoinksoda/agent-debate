@@ -9,12 +9,12 @@ import type {
 import { loadConfig, getProjectRoot } from "./config.js";
 import { loadPersona } from "./agents/persona-loader.js";
 import {
-  fetchJiraTicket,
+  fetchTicket,
   extractRequirementsFromTicket,
 } from "./parsers/jira.js";
 import {
-  fetchConfluencePage,
-  extractRequirementsFromSpike,
+  fetchDocPage,
+  extractRequirementsFromDoc,
 } from "./parsers/confluence.js";
 import { buildTraceabilityMatrix } from "./parsers/requirements.js";
 import {
@@ -52,27 +52,27 @@ export async function runOrchestrator(
 
   console.log("Gathering context...");
 
-  const ticket = await fetchJiraTicket(ticketKey);
+  const ticket = await fetchTicket(ticketKey, config);
   console.log(`  Ticket: ${ticket.summary}`);
 
-  let spikeContent = "";
-  for (const url of ticket.linkedConfluencePages) {
-    console.log(`  Fetching spike: ${url}`);
-    const page = await fetchConfluencePage(url);
-    spikeContent += `\n\n## ${page.title}\n${page.content}`;
+  let docContent = "";
+  for (const url of ticket.linkedDocs) {
+    console.log(`  Fetching doc: ${url}`);
+    const page = await fetchDocPage(url, config);
+    docContent += `\n\n## ${page.title}\n${page.content}`;
 
-    // Index spike in vector DB for future reference
+    // Index doc in vector DB for future reference
     await indexSpike(projectRoot, page);
-    console.log(`  Indexed spike in vector DB: ${page.title}`);
+    console.log(`  Indexed doc in vector DB: ${page.title}`);
   }
 
   const requirements = [
     ...extractRequirementsFromTicket(ticket),
-    ...(spikeContent
-      ? extractRequirementsFromSpike({
-          title: "Spike",
+    ...(docContent
+      ? extractRequirementsFromDoc({
+          title: "Doc",
           url: "",
-          content: spikeContent,
+          content: docContent,
         })
       : []),
   ];
@@ -115,7 +115,7 @@ export async function runOrchestrator(
   const debateContext = {
     requirements,
     ticketSummary: `${ticket.key}: ${ticket.summary}\n\n${ticket.description}`,
-    spikeContent,
+    spikeContent: docContent,
     adrContent: "",
     correctionsLog,
     projectRoot,

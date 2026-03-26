@@ -25,7 +25,7 @@ export async function runFinalReview(
 
   // Pass 1: Mechanical quality gates
   console.log("\n=== Final Review: Pass 1 (Quality Gates) ===\n");
-  const gatesResult = runQualityGates(touchedFiles);
+  const gatesResult = await runQualityGates(touchedFiles, projectRoot);
   const allGatesPassed = gatesResult.every((g) => g.passed);
 
   if (!allGatesPassed) {

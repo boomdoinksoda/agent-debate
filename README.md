@@ -1,13 +1,15 @@
 # Agent Debate
 
-A multi-agent orchestration tool that coordinates AI agents to **debate**, **implement**, and **review** code changes from Jira tickets. Three debate agents argue over the best implementation approach, coding agents build it step by step, review agents verify each step, and a final review catches regressions and past mistakes.
+A multi-agent orchestration tool that coordinates AI agents to **debate**, **implement**, and **review** code changes from your project tickets. Three debate agents argue over the best implementation approach, coding agents build it step by step, review agents verify each step, and a final review catches regressions and past mistakes.
+
+**Bring your own tools.** Agent Debate is language-agnostic and tool-agnostic. It works with whatever project tracker, documentation platform, language, linter, and test runner your team already uses.
 
 Built on the [Anthropic SDK](https://docs.anthropic.com/en/docs/sdks) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) subagents, with [LanceDB](https://lancedb.github.io/lancedb/) for semantic search over your team's history.
 
 ## How It Works
 
 ```
-Jira Ticket
+Ticket (Jira, Linear, GitHub Issues, etc.)
     │
     ▼
 ┌─────────────────────────────────────────────┐
@@ -36,7 +38,7 @@ Jira Ticket
 ├─────────────────────────────────────────────┤
 │  Phase 3: Final Review                      │
 │                                             │
-│  Pass 1: Quality gates (fmt, vet, test)     │
+│  Pass 1: Your quality gates (configurable)  │
 │  Pass 2: Judgment review                    │
 │    - Requirements coverage check            │
 │    - Corrections log match detection        │
@@ -54,7 +56,7 @@ Jira Ticket
 | **Pragmatist** | Simplicity | Reuse existing patterns, minimize complexity, ship fast |
 | **Auditor** | Risk prevention | Past mistakes, corrections log, error handling gaps, test coverage |
 
-All requirements from the Jira ticket, Confluence spike, and ADR are treated as **fixed scope**. The agents debate *how* to implement — never *whether* to implement. Every requirement must appear in the final plan.
+All requirements from your ticket and linked documents are treated as **fixed scope**. The agents debate *how* to implement — never *whether* to implement. Every requirement must appear in the final plan.
 
 ### Structured Voting
 
@@ -76,7 +78,7 @@ Agent Debate uses LanceDB to build a semantic memory of your team's history. Thi
 | `corrections` | Past mistakes from your corrections log | `seed` command or pipeline start | Auditor during debate |
 | `code-patterns` | Naming, error handling, test patterns | `seed --code` or during init | All debate agents |
 | `review-history` | Review outcomes per implementation step | After each successful step | Auditor in future runs |
-| `spikes` | Confluence spike content (chunked) | When fetching during pipeline run | Debate agents via search |
+| `docs` | Document/spike content (chunked) | When fetching during pipeline run | Debate agents via search |
 
 Instead of dumping your entire corrections log into the Auditor's context, the vector DB does semantic search to find only the *relevant* past mistakes for the current ticket. This scales as your history grows.
 
@@ -85,7 +87,6 @@ Instead of dumping your entire corrections log into the Auditor's context, the v
 - **Node.js** >= 18
 - **Claude Code CLI** installed and authenticated (`claude` command available)
 - **Anthropic API key** set as `ANTHROPIC_API_KEY` environment variable
-- **Jira/Confluence access** via Claude Code MCP tools or CLI integrations
 
 ## Installation
 
@@ -155,30 +156,108 @@ For each role you choose independently:
 - **Option C** — Describe the coding style you want in plain English. The tool generates an agent persona from your description.
 - **Option D** — Use the generic default.
 
-Your selections are saved to `agent-config.json`:
+### 2. Configure Your Tools
+
+Edit `agent-config.json` to tell Agent Debate how to fetch tickets and docs from your tools, and what quality gates to run.
+
+**Ticket source** — works with Jira, Linear, GitHub Issues, Notion databases, or anything reachable via CLI:
 
 ```json
 {
-  "roles": {
-    "coder": "your-coder-agent",
-    "reviewer:correctness": "your-correctness-reviewer",
-    "reviewer:style": "your-style-reviewer",
-    "reviewer:patterns": "your-patterns-reviewer"
-  },
-  "personas": {
-    "debater:architect": "personas/architect.md",
-    "debater:pragmatist": "personas/pragmatist.md",
-    "debater:auditor": "personas/auditor.md"
-  },
-  "settings": {
-    "maxDebateRounds": 4,
-    "maxReviewCycles": 3,
-    "correctionsLogPath": "corrections-log.md"
+  "sources": {
+    "tickets": {
+      "provider": "cli",
+      "fetchCommand": "claude --print \"Fetch the Jira ticket $TICKET_KEY. Return ONLY JSON with fields: key, summary, description, acceptanceCriteria (string[]), linkedDocs (URL[]), subtasks ({key, summary}[]). No markdown.\""
+    }
   }
 }
 ```
 
-### 2. Seed the Vector Database (Optional)
+**Doc source** — works with Confluence, Notion, Obsidian (local files), Google Docs, or any URL:
+
+```json
+{
+  "sources": {
+    "docs": {
+      "provider": "cli",
+      "fetchCommand": "claude --print \"Fetch the document at $DOC_URL. Return ONLY JSON with fields: title, url, content. No markdown.\""
+    }
+  }
+}
+```
+
+**Quality gates** — configure whatever linters, formatters, and test runners your project uses:
+
+```json
+{
+  "qualityGates": [
+    { "name": "lint", "command": "npm run lint" },
+    { "name": "test", "command": "npm test" },
+    { "name": "typecheck", "command": "npx tsc --noEmit" }
+  ]
+}
+```
+
+<details>
+<summary>Example configs for different stacks</summary>
+
+**Go:**
+```json
+{
+  "qualityGates": [
+    { "name": "fmt", "command": "gofmt -l $FILES" },
+    { "name": "vet", "command": "go vet ./..." },
+    { "name": "test", "command": "go test -race ./..." }
+  ]
+}
+```
+
+**Ruby:**
+```json
+{
+  "qualityGates": [
+    { "name": "rubocop", "command": "bundle exec rubocop" },
+    { "name": "rspec", "command": "bundle exec rspec" }
+  ]
+}
+```
+
+**Python:**
+```json
+{
+  "qualityGates": [
+    { "name": "ruff", "command": "ruff check ." },
+    { "name": "mypy", "command": "mypy ." },
+    { "name": "pytest", "command": "pytest" }
+  ]
+}
+```
+
+**TypeScript/React:**
+```json
+{
+  "qualityGates": [
+    { "name": "eslint", "command": "npx eslint ." },
+    { "name": "typecheck", "command": "npx tsc --noEmit" },
+    { "name": "test", "command": "npx vitest run" }
+  ]
+}
+```
+
+**Frontend E2E:**
+```json
+{
+  "qualityGates": [
+    { "name": "lint", "command": "npm run lint" },
+    { "name": "unit", "command": "npm test" },
+    { "name": "e2e", "command": "npx cypress run" }
+  ]
+}
+```
+
+</details>
+
+### 3. Seed the Vector Database (Optional)
 
 If you have an existing corrections log or a codebase you want the agents to learn from:
 
@@ -190,12 +269,12 @@ npx tsx src/index.ts seed --corrections path/to/corrections-log.md
 npx tsx src/index.ts seed --code path/to/your/project/src/
 
 # Both at once
-npx tsx src/index.ts seed --corrections corrections-log.md --code ../my-project/pkg/
+npx tsx src/index.ts seed --corrections corrections-log.md --code ../my-project/src/
 ```
 
 The vector DB is stored in `.agent-debate-db/` (gitignored by default).
 
-### 3. Customize Debate Personas (Optional)
+### 4. Customize Debate Personas (Optional)
 
 The three debate personas live in `personas/`. Edit them to match your team's priorities:
 
@@ -220,7 +299,7 @@ You are the Auditor. Your job is to prevent the team from repeating past mistake
 
 ### Full Pipeline
 
-Run the complete debate → code → review pipeline for a Jira ticket:
+Run the complete debate -> code -> review pipeline:
 
 ```bash
 # As plugin
@@ -231,13 +310,14 @@ npx tsx src/index.ts run PROJ-12345
 ```
 
 The orchestrator will:
-1. Fetch the Jira ticket and any linked Confluence spikes
+1. Fetch the ticket and any linked documents
 2. Extract all requirements
 3. Run 4 debate rounds with structured voting
 4. Present the implementation plan for your approval
 5. Execute each step with coding + review loops
-6. Run final quality gates and judgment review
-7. Present the final report
+6. Run your configured quality gates
+7. Run the judgment review (corrections log, requirements coverage, dissent check)
+8. Present the final report
 
 ### Debate Only
 
@@ -246,8 +326,6 @@ Generate an implementation plan without executing it:
 ```bash
 npx tsx src/index.ts run PROJ-12345 --debate-only
 ```
-
-This is useful for reviewing the plan before committing to execution, or for feeding the plan into a separate workflow.
 
 ### Dry Run
 
@@ -282,7 +360,7 @@ agent-debate/
 ├── skills/
 │   └── agent-debate/
 │       └── SKILL.md           # Slash command definition
-├── agent-config.json          # Role → agent mapping (your config)
+├── agent-config.json          # Your tool and agent config
 ├── personas/                  # Debate agent persona definitions
 │   ├── architect.md
 │   ├── pragmatist.md
@@ -296,7 +374,7 @@ agent-debate/
 │   ├── types.ts               # Shared TypeScript types
 │   ├── agents/
 │   │   ├── agent-scanner.ts   # Scans for existing Claude Code agents
-│   │   ├── agent-generator.ts # Generates agent personas from code/descriptions
+│   │   ├── agent-generator.ts # Generates personas from code/descriptions
 │   │   ├── cli-agent.ts       # Claude Code CLI subagent wrapper
 │   │   └── persona-loader.ts  # Loads persona markdown files
 │   ├── debate/
@@ -304,16 +382,16 @@ agent-debate/
 │   │   ├── voting.ts          # Vote collection and synthesis
 │   │   └── coverage.ts        # Requirements coverage checking
 │   ├── coding/
-│   │   ├── step-runner.ts     # Per-step implement → review loop
-│   │   └── quality-gates.ts   # Automated quality checks
+│   │   ├── step-runner.ts     # Per-step implement -> review loop
+│   │   └── quality-gates.ts   # Runs your configured quality checks
 │   ├── review/
 │   │   └── final-review.ts    # Two-pass final review
 │   ├── parsers/
-│   │   ├── jira.ts            # Jira ticket fetching/parsing
-│   │   ├── confluence.ts      # Confluence page fetching/parsing
+│   │   ├── jira.ts            # Ticket fetching (configurable source)
+│   │   ├── confluence.ts      # Doc fetching (configurable source)
 │   │   └── requirements.ts    # Requirements extraction and traceability
 │   └── vectordb/
-│       ├── embeddings.ts      # Text → vector embedding generation
+│       ├── embeddings.ts      # Text -> vector embedding generation
 │       ├── store.ts           # LanceDB read/write operations
 │       └── collections.ts     # Collection-specific indexing and search
 ├── package.json
@@ -326,9 +404,9 @@ For each implementation step, the orchestrator runs a tight loop:
 
 1. **Coding agent** implements the step with full context (acceptance criteria, auditor warnings, requirements mapping)
 2. **Review agent** checks the diff against acceptance criteria, quality gates, and auditor warnings
-3. If approved → commit and move to next step
-4. If changes requested → coding agent fixes, review agent re-reviews
-5. After 3 cycles with no approval → escalates to you
+3. If approved -> commit and move to next step
+4. If changes requested -> coding agent fixes, review agent re-reviews
+5. After 3 cycles with no approval -> escalates to you
 
 The review agent is stateless — fresh context on every invocation, preventing drift.
 
@@ -354,6 +432,9 @@ It will never silently push through a failure.
 | `roles.reviewer:style` | Agent for style reviews | `default-reviewer` |
 | `roles.reviewer:patterns` | Agent for pattern reviews (final) | `default-reviewer` |
 | `personas.debater:*` | Path to debate persona markdown files | `personas/*.md` |
+| `sources.tickets` | How to fetch tickets (`$TICKET_KEY` is replaced) | Claude auto-detect |
+| `sources.docs` | How to fetch documents (`$DOC_URL` is replaced) | Claude auto-detect |
+| `qualityGates` | Array of `{name, command}` checks to run | `[]` (none) |
 | `settings.maxDebateRounds` | Number of debate rounds | `4` |
 | `settings.maxReviewCycles` | Max review attempts per step | `3` |
 | `settings.correctionsLogPath` | Path to corrections/mistakes log | `corrections-log.md` |
@@ -367,7 +448,7 @@ It will never silently push through a failure.
 
 ## Contributing
 
-Contributions welcome. If you build custom debate personas or integrate with additional project management tools, consider opening a PR.
+Contributions welcome. If you build custom debate personas, add quality gate presets for new languages, or integrate with additional project management tools, consider opening a PR.
 
 ## License
 

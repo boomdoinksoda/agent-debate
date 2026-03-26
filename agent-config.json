@@ -10,6 +10,17 @@
     "debater:pragmatist": "personas/pragmatist.md",
     "debater:auditor": "personas/auditor.md"
   },
+  "sources": {
+    "tickets": {
+      "provider": "cli",
+      "fetchCommand": "claude --print \"Fetch the ticket $TICKET_KEY from our project management tool. Return ONLY a JSON object with fields: key, summary, description, acceptanceCriteria (array of strings), linkedDocs (array of URLs), subtasks (array of {key, summary}). No markdown, just raw JSON.\""
+    },
+    "docs": {
+      "provider": "cli",
+      "fetchCommand": "claude --print \"Fetch the document at $DOC_URL. Return ONLY a JSON object with fields: title, url, content (the full text content). No markdown, just raw JSON.\""
+    }
+  },
+  "qualityGates": [],
   "settings": {
     "maxDebateRounds": 4,
     "maxReviewCycles": 3,

@@ -16,6 +16,11 @@ export type AgentRole = DebaterRole | CoderRole | ReviewerRole;
 export interface AgentConfig {
   roles: Record<string, string>;
   personas?: Record<string, string>;
+  sources?: {
+    tickets?: { provider: string; fetchCommand: string };
+    docs?: { provider: string; fetchCommand: string };
+  };
+  qualityGates?: { name: string; command: string }[];
   settings?: {
     maxDebateRounds?: number;
     maxReviewCycles?: number;
