@@ -2,7 +2,5 @@
   "name": "agent-debate",
   "version": "0.1.0",
   "description": "Multi-agent debate orchestrator — coordinates AI agents to debate, implement, and review code changes from Jira tickets",
-  "skills": [
-    "skills/agent-debate"
-  ]
+  "skills": "./skills/"
 }
