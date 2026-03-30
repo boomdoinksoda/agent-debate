@@ -23,6 +23,10 @@ program
   )
   .option("--debate-only", "Stop after debate phase, output the plan")
   .option("--dry-run", "Show what would happen without executing")
+  .option(
+    "--context-file <path>",
+    "Path to pre-fetched context JSON (skip ticket/doc fetching)"
+  )
   .action(runOrchestrator);
 
 program

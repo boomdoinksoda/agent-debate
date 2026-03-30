@@ -37,6 +37,19 @@ import {
 interface RunOptions {
   debateOnly?: boolean;
   dryRun?: boolean;
+  contextFile?: string;
+}
+
+export interface PreFetchedContext {
+  ticket: {
+    key: string;
+    summary: string;
+    description: string;
+    acceptanceCriteria: string[];
+    linkedDocs: string[];
+    subtasks: { key: string; summary: string }[];
+  };
+  docs: { title: string; url: string; content: string }[];
 }
 
 export async function runOrchestrator(
@@ -52,18 +65,36 @@ export async function runOrchestrator(
 
   console.log("Gathering context...");
 
-  const ticket = await fetchTicket(ticketKey, config);
-  console.log(`  Ticket: ${ticket.summary}`);
-
+  let ticket;
   let docContent = "";
-  for (const url of ticket.linkedDocs) {
-    console.log(`  Fetching doc: ${url}`);
-    const page = await fetchDocPage(url, config);
-    docContent += `\n\n## ${page.title}\n${page.content}`;
 
-    // Index doc in vector DB for future reference
-    await indexSpike(projectRoot, page);
-    console.log(`  Indexed doc in vector DB: ${page.title}`);
+  if (options.contextFile) {
+    // Use pre-fetched context from the skill layer
+    console.log(`  Loading pre-fetched context from ${options.contextFile}`);
+    const raw = await readFile(resolve(options.contextFile), "utf-8");
+    const preFetched = JSON.parse(raw) as PreFetchedContext;
+
+    ticket = preFetched.ticket;
+    console.log(`  Ticket: ${ticket.summary}`);
+
+    for (const doc of preFetched.docs) {
+      docContent += `\n\n## ${doc.title}\n${doc.content}`;
+      await indexSpike(projectRoot, doc);
+      console.log(`  Indexed doc in vector DB: ${doc.title}`);
+    }
+  } else {
+    // Fetch live from configured sources
+    ticket = await fetchTicket(ticketKey, config);
+    console.log(`  Ticket: ${ticket.summary}`);
+
+    for (const url of ticket.linkedDocs) {
+      console.log(`  Fetching doc: ${url}`);
+      const page = await fetchDocPage(url, config);
+      docContent += `\n\n## ${page.title}\n${page.content}`;
+
+      await indexSpike(projectRoot, page);
+      console.log(`  Indexed doc in vector DB: ${page.title}`);
+    }
   }
 
   const requirements = [

@@ -100,23 +100,45 @@ Save the appropriate fetch commands to `sources` in config.
 
 After setup is complete (or if config is already configured):
 
-### Debate Only (recommended first)
+### Step 1: Fetch context using MCP tools
 
-If the user asks for "just a plan" or "debate only", run the debate phase:
+The orchestrator subprocess cannot access authenticated services (Jira, Confluence, etc.) because MCP tools only work in this session. So YOU must fetch the ticket and docs first, then pass them to the orchestrator via a context file.
+
+1. Use available MCP tools (Atlassian, GitHub, etc.) to fetch the ticket details for `$ARGUMENTS`
+2. If the ticket has linked documents (Confluence pages, Notion pages, etc.), fetch those too
+3. Write everything to a JSON file at `/tmp/agent-debate-context.json` with this structure:
+
+```json
+{
+  "ticket": {
+    "key": "PROJ-123",
+    "summary": "...",
+    "description": "...",
+    "acceptanceCriteria": ["..."],
+    "linkedDocs": ["url1", "url2"],
+    "subtasks": [{"key": "PROJ-124", "summary": "..."}]
+  },
+  "docs": [
+    {"title": "Spike: ...", "url": "...", "content": "full text..."}
+  ]
+}
+```
+
+### Step 2: Run the orchestrator with context file
+
+For debate-only (recommended first):
 
 ```bash
-cd ${CLAUDE_PLUGIN_ROOT} && npx tsx src/index.ts run $ARGUMENTS --debate-only
+cd ${CLAUDE_PLUGIN_ROOT} && npx tsx src/index.ts run $ARGUMENTS --debate-only --context-file /tmp/agent-debate-context.json
+```
+
+For the full pipeline:
+
+```bash
+cd ${CLAUDE_PLUGIN_ROOT} && npx tsx src/index.ts run $ARGUMENTS --context-file /tmp/agent-debate-context.json
 ```
 
 Present the implementation plan to the user. Ask: "Approve this plan and proceed to coding, or adjust?"
-
-### Full Pipeline
-
-On approval or if user wants the full pipeline:
-
-```bash
-cd ${CLAUDE_PLUGIN_ROOT} && npx tsx src/index.ts run $ARGUMENTS
-```
 
 ### Seed Vector DB
 
